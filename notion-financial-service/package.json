@@ -7,18 +7,26 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "test": "npm run test:health && npm run test:integration",
+    "test:health": "node scripts/test-health.js",
+    "test:integration": "node scripts/test-integration.js",
+    "test:quick": "npm run test:health"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "@notionhq/client": "^4.0.1",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",
     "fastify": "^5.4.0",
+    "node-fetch": "^3.3.2",
     "pino": "^9.8.0",
+    "pino-pretty": "^13.1.1",
     "zod": "^4.0.17"
   },
   "devDependencies": {

@@ -1,29 +1,25 @@
 import { z } from 'zod';
 
-export const SpendingRequestStatusSchema = z.enum([
-  'pending',
-  'approved',
-  'denied',
+export const SpendingStatusSchema = z.enum([
+  'Pending',
+  'Approved',
+  'Denied',
 ]);
 
 export const UrgencyLevelSchema = z.enum([
-  'low',
-  'medium',
-  'high',
-  'urgent',
+  'Low',
+  'Medium',
+  'High',
+  'Critical',
 ]);
 
 export const SpendingCategorySchema = z.enum([
-  'groceries',
-  'dining',
-  'transportation',
-  'utilities',
-  'entertainment',
-  'healthcare',
-  'shopping',
-  'travel',
-  'education',
-  'other',
+  'Food',
+  'Entertainment',
+  'Shopping',
+  'Bills',
+  'Emergency',
+  'Other',
 ]);
 
 export const SpendingRequestSchema = z.object({
@@ -32,21 +28,21 @@ export const SpendingRequestSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   description: z.string().optional(),
   category: SpendingCategorySchema,
-  status: SpendingRequestStatusSchema,
+  status: SpendingStatusSchema,
   requestDate: z.date(),
-  decidedDate: z.date().optional(),
+  decisionDate: z.date().optional(),
   reasoning: z.string().optional(),
-  urgencyLevel: UrgencyLevelSchema,
+  urgency: UrgencyLevelSchema,
   tags: z.array(z.string()).default([]),
 });
 
 export const CreateSpendingRequestSchema = SpendingRequestSchema.omit({
   id: true,
   status: true,
-  decidedDate: true,
+  decisionDate: true,
   reasoning: true,
 }).extend({
-  status: z.literal('pending').default('pending'),
+  status: z.literal('Pending').default('Pending'),
   requestDate: z.date().default(() => new Date()),
 });
 
@@ -56,12 +52,12 @@ export const UpdateSpendingRequestSchema = SpendingRequestSchema.partial().exten
 
 export const SpendingRequestDecisionSchema = z.object({
   id: z.string(),
-  status: z.enum(['approved', 'denied']),
+  status: z.enum(['Approved', 'Denied']),
   reasoning: z.string().min(1, 'Decision reasoning is required'),
-  decidedDate: z.date().default(() => new Date()),
+  decisionDate: z.date().default(() => new Date()),
 });
 
-export type SpendingRequestStatus = z.infer<typeof SpendingRequestStatusSchema>;
+export type SpendingStatus = z.infer<typeof SpendingStatusSchema>;
 export type UrgencyLevel = z.infer<typeof UrgencyLevelSchema>;
 export type SpendingCategory = z.infer<typeof SpendingCategorySchema>;
 export type SpendingRequest = z.infer<typeof SpendingRequestSchema>;

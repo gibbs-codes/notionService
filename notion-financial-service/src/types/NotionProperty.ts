@@ -256,7 +256,7 @@ export const NotionPropertyFormatters = {
     })),
 
   formatDate: (date: Date): NotionDate['date'] => ({
-    start: date.toISOString().split('T')[0],
+    start: date.toISOString().split('T')[0]!,
   }),
 
   formatDateTime: (date: Date): NotionDate['date'] => ({
@@ -265,7 +265,7 @@ export const NotionPropertyFormatters = {
 };
 
 export const DatabaseQuerySchema = z.object({
-  filter: z.record(z.any()).optional(),
+  filter: z.record(z.string(), z.any()).optional(),
   sorts: z.array(z.object({
     property: z.string(),
     direction: z.enum(['ascending', 'descending']),
@@ -275,3 +275,113 @@ export const DatabaseQuerySchema = z.object({
 });
 
 export type DatabaseQuery = z.infer<typeof DatabaseQuerySchema>;
+
+// Helper functions to convert Notion API responses to our types
+export const NotionConverters = {
+  // Convert Notion page to our SpendingRequest type
+  pageToSpendingRequest: (page: NotionPageBase): any => {
+    return {
+      id: page.id,
+      title: (page.properties['Title'] && NotionPropertyExtractors.extractTitle(page.properties['Title'])) ||
+             (page.properties['Title'] && NotionPropertyExtractors.extractRichText(page.properties['Title'])),
+      amount: page.properties['Amount'] && NotionPropertyExtractors.extractNumber(page.properties['Amount']),
+      description: page.properties['Description'] && NotionPropertyExtractors.extractRichText(page.properties['Description']),
+      category: page.properties['Category'] && NotionPropertyExtractors.extractSelect(page.properties['Category']),
+      status: page.properties['Status'] && NotionPropertyExtractors.extractSelect(page.properties['Status']),
+      requestDate: (page.properties['Request Date'] && NotionPropertyExtractors.extractDate(page.properties['Request Date'])) ||
+                   new Date(page.created_time),
+      decisionDate: page.properties['Decision Date'] && NotionPropertyExtractors.extractDate(page.properties['Decision Date']),
+      reasoning: page.properties['Reasoning'] && NotionPropertyExtractors.extractRichText(page.properties['Reasoning']),
+      urgency: page.properties['Urgency'] && NotionPropertyExtractors.extractSelect(page.properties['Urgency']),
+      tags: page.properties['Tags'] && NotionPropertyExtractors.extractMultiSelect(page.properties['Tags']),
+    };
+  },
+
+  // Convert our SpendingRequest to Notion page properties
+  spendingRequestToNotionProperties: (request: any): Record<string, any> => {
+    const properties: Record<string, any> = {};
+
+    if (request.title) {
+      properties['Title'] = NotionPropertyFormatters.formatTitle(request.title);
+    }
+    if (request.amount !== undefined) {
+      properties['Amount'] = { number: request.amount };
+    }
+    if (request.description) {
+      properties['Description'] = NotionPropertyFormatters.formatRichText(request.description);
+    }
+    if (request.category) {
+      properties['Category'] = NotionPropertyFormatters.formatSelect(request.category);
+    }
+    if (request.status) {
+      properties['Status'] = NotionPropertyFormatters.formatSelect(request.status);
+    }
+    if (request.requestDate) {
+      properties['Request Date'] = NotionPropertyFormatters.formatDate(request.requestDate);
+    }
+    if (request.decisionDate) {
+      properties['Decision Date'] = NotionPropertyFormatters.formatDate(request.decisionDate);
+    }
+    if (request.reasoning) {
+      properties['Reasoning'] = NotionPropertyFormatters.formatRichText(request.reasoning);
+    }
+    if (request.urgency) {
+      properties['Urgency'] = NotionPropertyFormatters.formatSelect(request.urgency);
+    }
+    if (request.tags && request.tags.length > 0) {
+      properties['Tags'] = NotionPropertyFormatters.formatMultiSelect(request.tags);
+    }
+
+    return properties;
+  },
+
+  // Safe property extraction with fallbacks
+  safeExtractText: (properties: Record<string, NotionProperty>, propertyName: string): string => {
+    const property = properties[propertyName];
+    if (!property) return '';
+
+    if (property.type === 'title' && property.title) {
+      return property.title.map(t => t.plain_text).join('');
+    }
+    if (property.type === 'rich_text' && property.rich_text) {
+      return property.rich_text.map(t => t.plain_text).join('');
+    }
+    return '';
+  },
+
+  safeExtractNumber: (properties: Record<string, NotionProperty>, propertyName: string): number | null => {
+    const property = properties[propertyName];
+    if (!property || property.type !== 'number') return null;
+    return property.number;
+  },
+
+  safeExtractSelect: (properties: Record<string, NotionProperty>, propertyName: string): string | null => {
+    const property = properties[propertyName];
+    if (!property || property.type !== 'select' || !property.select) return null;
+    return property.select.name;
+  },
+
+  safeExtractDate: (properties: Record<string, NotionProperty>, propertyName: string): Date | null => {
+    const property = properties[propertyName];
+    if (!property || property.type !== 'date' || !property.date?.start) return null;
+    return new Date(property.date.start);
+  },
+
+  safeExtractMultiSelect: (properties: Record<string, NotionProperty>, propertyName: string): string[] => {
+    const property = properties[propertyName];
+    if (!property || property.type !== 'multi_select') return [];
+    return property.multi_select.map(option => option.name);
+  },
+};
+
+// Validation helpers
+export const NotionValidators = {
+  validateSpendingRequestProperties: (properties: Record<string, any>): boolean => {
+    const requiredFields = ['Title', 'Amount', 'Category', 'Status', 'Urgency'];
+    return requiredFields.every(field => properties[field] !== undefined);
+  },
+
+  validatePropertyType: (property: NotionProperty, expectedType: string): boolean => {
+    return property.type === expectedType;
+  },
+};
